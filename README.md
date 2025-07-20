@@ -56,6 +56,41 @@ go build -o breakout-game.exe
 - **ゲームエンジン**: Ebiten v2
 - **画面サイズ**: 800x600ピクセル
 - **フレームレート**: 60FPS
+- **対応プラットフォーム**: Windows, macOS, Linux, WebAssembly
+
+## WebAssembly版
+
+このゲームはWebAssembly（WASM）でも動作します。
+
+### オンライン版
+GitHub Pagesでホストされているオンライン版は以下のURLでアクセスできます：
+```
+https://[your-username].github.io/sampleProgram2/
+```
+
+### ローカルでのWASM実行
+1. WASMファイルをビルド:
+```bash
+GOOS=js GOARCH=wasm go build -o main.wasm main.go
+cp "$(go env GOROOT)/misc/wasm/wasm_exec.js" .
+```
+
+2. ローカルサーバーを起動:
+```bash
+python -m http.server 8080
+# または
+npx serve .
+```
+
+3. ブラウザで `http://localhost:8080` にアクセス
+
+## 自動デプロイ
+
+このプロジェクトはGitHub Actionsを使用して自動的にビルド・デプロイされます：
+
+- **mainブランチにプッシュ**すると自動的にWASM版がビルドされます
+- **GitHub Pages**に自動デプロイされます
+- **WebAssembly対応ブラウザ**でゲームをプレイできます
 
 ## ライセンス
 

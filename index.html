@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ブロック崩しゲーム - WASM版</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'Arial', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+        
+        .container {
+            text-align: center;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+        
+        h1 {
+            color: white;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+        
+        .game-container {
+            border: 3px solid #fff;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+        
+        canvas {
+            display: block;
+            background: #000;
+        }
+        
+        .instructions {
+            margin-top: 20px;
+            color: white;
+            text-align: left;
+            max-width: 600px;
+        }
+        
+        .instructions h3 {
+            margin-bottom: 10px;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+        }
+        
+        .instructions ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+        
+        .instructions li {
+            margin-bottom: 5px;
+        }
+        
+        .loading {
+            color: white;
+            font-size: 18px;
+            margin: 20px 0;
+        }
+        
+        .error {
+            color: #ff6b6b;
+            background: rgba(255, 107, 107, 0.1);
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border: 1px solid #ff6b6b;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎮 ブロック崩しゲーム</h1>
+        <div class="game-container">
+            <canvas id="gameCanvas" width="800" height="600"></canvas>
+        </div>
+        
+        <div id="loading" class="loading">
+            🚀 ゲームを読み込み中...
+        </div>
+        
+        <div id="error" class="error" style="display: none;">
+            エラーが発生しました。ブラウザがWebAssemblyをサポートしていない可能性があります。
+        </div>
+        
+        <div class="instructions">
+            <h3>🎯 操作方法</h3>
+            <ul>
+                <li><strong>左右矢印キー</strong>: パドルを左右に移動</li>
+                <li><strong>スペースキー</strong>: ゲーム開始</li>
+                <li><strong>Rキー</strong>: ゲームオーバーまたは勝利後にリスタート</li>
+            </ul>
+            
+            <h3>🎮 ゲームルール</h3>
+            <ul>
+                <li>パドルでボールを操作してブロックを破壊</li>
+                <li>すべてのブロックを破壊すると勝利</li>
+                <li>ボールを落とすとゲームオーバー</li>
+                <li>ブロックを破壊するとスコアが加算されます</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const loading = document.getElementById('loading');
+        const error = document.getElementById('error');
+        
+        // WebAssemblyのサポートチェック
+        if (!('WebAssembly' in window)) {
+            loading.style.display = 'none';
+            error.style.display = 'block';
+            error.textContent = 'このブラウザはWebAssemblyをサポートしていません。';
+            throw new Error('WebAssembly not supported');
+        }
+        
+        // Go WASMの読み込み
+        const go = new Go();
+        
+        WebAssembly.instantiateStreaming(fetch('main.wasm'), go.importObject)
+            .then((result) => {
+                loading.textContent = '🎮 ゲーム準備完了！';
+                setTimeout(() => {
+                    loading.style.display = 'none';
+                }, 1000);
+                
+                go.run(result.instance);
+            })
+            .catch((err) => {
+                console.error('WASM loading error:', err);
+                loading.style.display = 'none';
+                error.style.display = 'block';
+                error.textContent = 'ゲームの読み込みに失敗しました: ' + err.message;
+            });
+    </script>
+</body>
+</html> 

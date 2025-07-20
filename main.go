@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"image/color"
 	"log"
+	"math"
 	"math/rand"
 	"time"
 
@@ -31,6 +32,8 @@ type Game struct {
 	ballY       float64
 	ballVelX    float64
 	ballVelY    float64
+	prevBallX   float64
+	prevBallY   float64
 	blocks      [][]bool
 	score       int
 	gameOver    bool
@@ -49,14 +52,16 @@ func NewGame() *Game {
 	}
 
 	return &Game{
-		paddleX:  (screenWidth - paddleWidth) / 2,
-		paddleY:  screenHeight - 50,
-		ballX:    screenWidth / 2,
-		ballY:    screenHeight - 70,
-		ballVelX: 0,
-		ballVelY: 0,
-		blocks:   blocks,
-		score:    0,
+		paddleX:   (screenWidth - paddleWidth) / 2,
+		paddleY:   screenHeight - 50,
+		ballX:     screenWidth / 2,
+		ballY:     screenHeight - 70,
+		ballVelX:  0,
+		ballVelY:  0,
+		prevBallX: screenWidth / 2,
+		prevBallY: screenHeight - 70,
+		blocks:    blocks,
+		score:     0,
 	}
 }
 
@@ -86,6 +91,10 @@ func (g *Game) Update() error {
 		return nil
 	}
 
+	// 前フレームの位置を保存
+	g.prevBallX = g.ballX
+	g.prevBallY = g.ballY
+
 	// ボールの移動
 	g.ballX += g.ballVelX
 	g.ballY += g.ballVelY
@@ -93,31 +102,24 @@ func (g *Game) Update() error {
 	// 壁との衝突判定
 	if g.ballX <= 0 || g.ballX >= screenWidth-ballSize {
 		g.ballVelX = -g.ballVelX
+		g.ballX = g.prevBallX // 位置を戻す
 	}
 	if g.ballY <= 0 {
 		g.ballVelY = -g.ballVelY
+		g.ballY = g.prevBallY // 位置を戻す
 	}
 
 	// パドルとの衝突判定
 	if g.ballY+ballSize >= g.paddleY && g.ballY <= g.paddleY+paddleHeight &&
 		g.ballX+ballSize >= g.paddleX && g.ballX <= g.paddleX+paddleWidth {
+		// 入射角と反射角を等しくする（横方向のベクトルは変化しない）
 		g.ballVelY = -g.ballVelY
-		// パドルの位置に応じてボールの角度を調整
-		relativeIntersectX := (g.paddleX + paddleWidth/2) - (g.ballX + ballSize/2)
-		g.ballVelX = -relativeIntersectX * 0.1
+		g.ballY = g.paddleY - ballSize // パドルの上に配置
+		// 横方向の速度はそのまま保持（入射角と反射角が等しい）
 	}
 
-	// ブロックとの衝突判定
-	blockRow := int(g.ballY) / blockHeight
-	blockCol := int(g.ballX) / blockCols
-
-	if blockRow >= 0 && blockRow < blockRows && blockCol >= 0 && blockCol < blockCols {
-		if g.blocks[blockRow][blockCol] {
-			g.blocks[blockRow][blockCol] = false
-			g.score += 10
-			g.ballVelY = -g.ballVelY
-		}
-	}
+	// ブロックとの衝突判定（改善版）
+	g.checkBlockCollisions()
 
 	// ゲームオーバー判定
 	if g.ballY >= screenHeight {
@@ -142,6 +144,78 @@ func (g *Game) Update() error {
 	}
 
 	return nil
+}
+
+// ブロック衝突判定の改善版
+func (g *Game) checkBlockCollisions() {
+	// ボールの現在位置と前フレーム位置から衝突をチェック
+	ballLeft := g.ballX
+	ballRight := g.ballX + ballSize
+	ballTop := g.ballY
+	ballBottom := g.ballY + ballSize
+
+	prevBallLeft := g.prevBallX
+	prevBallRight := g.prevBallX + ballSize
+	prevBallTop := g.prevBallY
+	prevBallBottom := g.prevBallY + ballSize
+
+	// ボールが通る領域のブロックをチェック
+	startRow := int(math.Min(prevBallTop, ballTop)) / blockHeight
+	endRow := int(math.Max(prevBallBottom, ballBottom)) / blockHeight
+	startCol := int(math.Min(prevBallLeft, ballLeft)) / blockWidth
+	endCol := int(math.Max(prevBallRight, ballRight)) / blockWidth
+
+	// 範囲を制限
+	startRow = int(math.Max(0, float64(startRow)))
+	endRow = int(math.Min(float64(blockRows-1), float64(endRow)))
+	startCol = int(math.Max(0, float64(startCol)))
+	endCol = int(math.Min(float64(blockCols-1), float64(endCol)))
+
+	collision := false
+	for row := startRow; row <= endRow; row++ {
+		for col := startCol; col <= endCol; col++ {
+			if g.blocks[row][col] {
+				// ブロックの境界
+				blockLeft := float64(col * blockWidth)
+				blockRight := blockLeft + blockWidth
+				blockTop := float64(row * blockHeight)
+				blockBottom := blockTop + blockHeight
+
+				// 衝突判定
+				if ballRight > blockLeft && ballLeft < blockRight &&
+					ballBottom > blockTop && ballTop < blockBottom {
+
+					g.blocks[row][col] = false
+					g.score += 10
+					collision = true
+
+					// 衝突方向を判定してボールの方向を変更
+					// 左右からの衝突
+					if (prevBallRight <= blockLeft && ballRight > blockLeft) ||
+						(prevBallLeft >= blockRight && ballLeft < blockRight) {
+						g.ballVelX = -g.ballVelX
+						if g.ballVelX > 0 {
+							g.ballX = blockRight
+						} else {
+							g.ballX = blockLeft - ballSize
+						}
+					} else {
+						// 上下からの衝突
+						g.ballVelY = -g.ballVelY
+						if g.ballVelY > 0 {
+							g.ballY = blockBottom
+						} else {
+							g.ballY = blockTop - ballSize
+						}
+					}
+					break
+				}
+			}
+		}
+		if collision {
+			break
+		}
+	}
 }
 
 func (g *Game) Draw(screen *ebiten.Image) {
