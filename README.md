@@ -65,7 +65,8 @@ go build -o breakout-game.exe
 ### オンライン版
 GitHub Pagesでホストされているオンライン版は以下のURLでアクセスできます：
 ```
-https://[your-username].github.io/sampleProgram2/
+https://maniax-jp.github.io/sampleProgram2/
+
 ```
 
 ### ローカルでのWASM実行
