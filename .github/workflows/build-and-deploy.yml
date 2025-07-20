@@ -40,6 +40,8 @@ jobs:
         # wasm_exec.jsを直接ダウンロード（より確実な方法）
         echo "Downloading wasm_exec.js..."
         curl -L -o wasm_exec.js https://raw.githubusercontent.com/golang/go/go1.22/misc/wasm/wasm_exec.js
+        # ファイルサイズを確認
+        ls -la main.wasm wasm_exec.js
         echo "WASM build completed successfully"
         
     - name: Create dist directory

@@ -126,24 +126,54 @@
             throw new Error('WebAssembly not supported');
         }
         
-        // Go WASMの読み込み
-        const go = new Go();
-        
-        WebAssembly.instantiateStreaming(fetch('main.wasm'), go.importObject)
-            .then((result) => {
-                loading.textContent = '🎮 ゲーム準備完了！';
-                setTimeout(() => {
-                    loading.style.display = 'none';
-                }, 1000);
+        // エラーハンドリングを改善したWASM読み込み
+        async function loadWASM() {
+            try {
+                // wasm_exec.jsを動的に読み込み
+                const wasmExecScript = document.createElement('script');
+                wasmExecScript.src = 'wasm_exec.js';
+                wasmExecScript.onload = async () => {
+                    try {
+                        // Go WASMの読み込み
+                        const go = new Go();
+                        
+                        const result = await WebAssembly.instantiateStreaming(
+                            fetch('main.wasm'), 
+                            go.importObject
+                        );
+                        
+                        loading.textContent = '🎮 ゲーム準備完了！';
+                        setTimeout(() => {
+                            loading.style.display = 'none';
+                        }, 1000);
+                        
+                        go.run(result.instance);
+                    } catch (wasmError) {
+                        console.error('WASM instantiation error:', wasmError);
+                        loading.style.display = 'none';
+                        error.style.display = 'block';
+                        error.textContent = 'WASMファイルの読み込みに失敗しました: ' + wasmError.message;
+                    }
+                };
                 
-                go.run(result.instance);
-            })
-            .catch((err) => {
+                wasmExecScript.onerror = () => {
+                    loading.style.display = 'none';
+                    error.style.display = 'block';
+                    error.textContent = 'wasm_exec.jsの読み込みに失敗しました。';
+                };
+                
+                document.head.appendChild(wasmExecScript);
+                
+            } catch (err) {
                 console.error('WASM loading error:', err);
                 loading.style.display = 'none';
                 error.style.display = 'block';
                 error.textContent = 'ゲームの読み込みに失敗しました: ' + err.message;
-            });
+            }
+        }
+        
+        // WASM読み込み開始
+        loadWASM();
     </script>
 </body>
 </html> 
